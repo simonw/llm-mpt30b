@@ -6,6 +6,8 @@ import os
 from tqdm import tqdm
 from functools import partialmethod
 
+DEFAULT_SYSTEM_PROMPT = "A conversation between a user and an LLM-based AI assistant."
+
 
 @llm.hookimpl
 def register_models(register):
@@ -33,7 +35,48 @@ class Mpt30b(llm.Model):
     class Options(llm.Options):
         verbose: bool = False
 
-    def execute(self, prompt, stream, response):
+    def build_prompt(self, prompt, conversation):
+        prompt_lines = []
+        current_system = None
+        if conversation is not None:
+            for prev_response in conversation.responses:
+                if (
+                    prev_response.prompt.system
+                    and prev_response.prompt.system != current_system
+                ):
+                    prompt_lines.append(
+                        f"<|im_start|>system\n{prev_response.prompt.system}<|im_end|>\n",
+                    )
+                    current_system = prev_response.prompt.system
+                prompt_lines.append(
+                    f"<|im_start|>user\n{prev_response.prompt.prompt}<|im_end|>\n",
+                )
+                prompt_lines.append(
+                    f"<|im_start|>assistant\n{prev_response.text()}<|im_end|>\n",
+                )
+
+        system_prompt_to_add = None
+        if prompt.system and prompt.system != current_system:
+            # User provided a system prompt, use it
+            system_prompt_to_add = prompt.system
+
+        # If no system prompt at all, use the default one
+        if not current_system and not system_prompt_to_add:
+            system_prompt_to_add = DEFAULT_SYSTEM_PROMPT
+
+        if system_prompt_to_add:
+            prompt_lines.append(
+                f"<|im_start|>system\n{system_prompt_to_add}<|im_end|>\n",
+            )
+        prompt_lines.extend(
+            [
+                f"<|im_start|>user\n{prompt.prompt}<|im_end|>\n",
+                f"<|im_start|>assistant\n",
+            ]
+        )
+        return prompt_lines
+
+    def execute(self, prompt, stream, response, conversation):
         original_init = tqdm.__init__
         if not prompt.options.verbose:
             # Disable all tqdm output, using this workaround:
@@ -50,18 +93,7 @@ class Mpt30b(llm.Model):
                 local_files_only=True,
             )
 
-            system_prompt = (
-                "A conversation between a user and an LLM-based AI assistant."
-            )
-
-            prompt_lines = [
-                # System prompt
-                f"<|im_start|>system\n{system_prompt}<|im_end|>\n",
-                # User prompt
-                f"<|im_start|>user\n{prompt.prompt}<|im_end|>\n",
-                # Start of assistant prompt
-                f"<|im_start|>assistant\n",
-            ]
+            prompt_lines = self.build_prompt(prompt, conversation)
 
             response._prompt_json = {"prompt_lines": prompt_lines}
 
@@ -80,5 +112,7 @@ class Mpt30b(llm.Model):
             )
             for word in generator:
                 yield word
+        except FileNotFoundError:
+            raise llm.ModelError("MPT model not installed - try running 'llm mpt30b download'")
         finally:
             tqdm.__init__ = original_init
