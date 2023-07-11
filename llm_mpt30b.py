@@ -113,6 +113,8 @@ class Mpt30b(llm.Model):
             for word in generator:
                 yield word
         except FileNotFoundError:
-            raise llm.ModelError("MPT model not installed - try running 'llm mpt30b download'")
+            raise llm.ModelError(
+                "MPT model not installed - try running 'llm mpt30b download'"
+            )
         finally:
             tqdm.__init__ = original_init
