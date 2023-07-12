@@ -7,8 +7,6 @@
 
 Plugin for [LLM](https://llm.datasette.io/) adding support for the [MPT-30B language model](https://huggingface.co/mosaicml/mpt-30b).
 
-> ⚠️ This plugin is in development, and will not work until the next release of LLM. See [this PR](https://github.com/simonw/llm/pull/65) for progress.
-
 This plugin uses [TheBloke/mpt-30B-GGML](https://huggingface.co/TheBloke/mpt-30B-GGML). The code was inspired by [abacaj/mpt-30B-inference](https://github.com/abacaj/mpt-30B-inference).
 
 ## Installation

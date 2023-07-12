@@ -30,7 +30,7 @@ setup(
     modules=["llm_mpt30b"],
     entry_points={"llm": ["llm_mpt30b = llm_mpt30b"]},
     install_requires=[
-        "llm",
+        "llm>=0.5",
         "ctransformers>=0.2.10",
         "transformers>=4.30.2",
         "huggingface-hub",
